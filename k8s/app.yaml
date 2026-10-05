@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sql-analytics-dashboard
+  labels:
+    app: sql-analytics-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sql-analytics-dashboard
+  template:
+    metadata:
+      labels:
+        app: sql-analytics-dashboard
+    spec:
+      containers:
+        - name: api
+          image: sql-analytics-dashboard:local
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /v1/readyz
+              port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql-analytics-dashboard
+spec:
+  selector:
+    app: sql-analytics-dashboard
+  ports:
+    - port: 80
+      targetPort: 8080
