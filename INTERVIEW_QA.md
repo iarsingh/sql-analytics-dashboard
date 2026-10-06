@@ -10,13 +10,13 @@ Source: [src/sqldash/sqlgen.py](src/sqldash/sqlgen.py).
 
 ## 2. How is a revenue question mapped?
 
-A question containing `revenue` returns `SELECT region, SUM(revenue) FROM orders GROUP BY region`. A question containing `tickets` returns the status count query. Matching is case-insensitive.
+A question containing `revenue` returns `SELECT region, SUM(revenue) FROM orders GROUP BY region`. A question containing `tickets` returns the status count query. Matching is case-insensitive and uses complete tokens.
 
 Source: [src/sqldash/sqlgen.py](src/sqldash/sqlgen.py).
 
 ## 3. What if both mapping keywords occur?
 
-The dictionary is iterated in insertion order, with `revenue` before `tickets`, so the revenue template wins. Add an ambiguity check if this precedence is not desired.
+The request is rejected as ambiguous with HTTP 422. Exactly one recognized keyword must match. `GET /templates` lists the two supported templates.
 
 Source: [src/sqldash/sqlgen.py](src/sqldash/sqlgen.py).
 
@@ -28,7 +28,7 @@ Source: [src/sqldash/sqlgen.py](src/sqldash/sqlgen.py).
 
 ## 5. Why can the keyword guard reject a harmless question?
 
-It uses substring membership for `drop`, `delete`, `update`, `insert`, and `alter`, rather than parsing SQL or validating a requested operation. A harmless phrase containing one of those strings can be rejected.
+It now checks complete lowercase tokens for `drop`, `delete`, `update`, `insert`, and `alter`, avoiding substring matches such as `altered`. It is still a natural-language guard, not a SQL parser or database permission system.
 
 Source: [src/sqldash/sqlgen.py](src/sqldash/sqlgen.py).
 
@@ -46,7 +46,7 @@ Source: [src/sqldash/sqlgen.py](src/sqldash/sqlgen.py).
 
 ## 8. How would you validate the mappings?
 
-The existing test sends `revenue by region` and checks for `SUM(revenue)` and the read-only flag, then verifies a delete question returns 422. Additional behavioral coverage could check unknown and ambiguous topics.
+The existing test sends `revenue by region` and checks for `SUM(revenue)` and the read-only flag, then verifies a delete question returns 422. Regression tests cover ambiguous requests, complete-token matching, and template discovery.
 
 Source: [src/sqldash/sqlgen.py](src/sqldash/sqlgen.py).
 
@@ -70,7 +70,7 @@ Source: [src/sqldash/ops.py](src/sqldash/ops.py).
 
 ## 12. What happens when a production job is approved?
 
-Targets exactly equal to `prod` or `production` create a `pending_approval` job and approval returns HTTP 403. Other target strings are queued. Approval of a lab job changes its status only; it does not execute a workload.
+Targets are trimmed and normalized to lowercase before policy checks. `prod` and `production`, including case/padding variants, create a `pending_approval` job and approval returns HTTP 403. Repeated lab approval is idempotent; approval changes a record only, without executing a workload.
 
 Source: [src/sqldash/ops.py](src/sqldash/ops.py).
 

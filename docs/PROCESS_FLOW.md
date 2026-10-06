@@ -8,12 +8,12 @@ Endpoint: `POST /generate`. Input: question. The processing stages below summari
 flowchart TD
   A["POST /generate"] --> B{"Non-empty string question?"}
   B -->|"No"| E["HTTP 422"]
-  B -->|"Yes"| C{"Contains forbidden write substring?"}
+  B -->|"Yes"| C{"Contains forbidden write token?"}
   C -->|"Yes"| E
-  C -->|"No"| D{"First matching template keyword?"}
+  C -->|"No"| D{"Exactly one template keyword?"}
   D -->|"revenue"| R["Return regional revenue SELECT"]
   D -->|"tickets"| T["Return ticket status count SELECT"]
-  D -->|"None"| E
+  D -->|"None or multiple"| E
   R --> O["SQL string + read_only true; no execution"]
   T --> O
 ```
@@ -27,7 +27,7 @@ flowchart TD
   C["Create tenant-scoped workspace"] --> J["Submit job: workspace + payload + target"]
   J --> V{"Workspace belongs to selected tenant?"}
   V -->|"No"| E["HTTP 404"]
-  V -->|"Yes"| P{"Target is prod or production?"}
+  V -->|"Yes"| P{"Normalized target is prod or production?"}
   P -->|"Yes"| Q["pending_approval"]
   P -->|"No"| L["queued"]
   Q --> A["Approval request"]
@@ -37,4 +37,4 @@ flowchart TD
   K --> S["No executor / no production apply"]
 ```
 
-Approval first checks job ownership using the selected tenant. Status changes and audit records remain in memory. The approval endpoint does not enforce a full transition state machine: repeated lab approval is possible. The domain request flow and this job-record flow are independent. Source: [ops.py](../src/sqldash/ops.py).
+Approval first checks job ownership using the selected tenant. Status changes and audit records remain in memory. Repeated lab approval returns the original approval without duplicating its event or counter. Ops transitions are protected by an in-process lock. The domain request flow and this job-record flow are independent. Source: [ops.py](../src/sqldash/ops.py).
